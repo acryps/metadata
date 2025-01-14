@@ -115,18 +115,33 @@ fetch(sourceLocation).then(response => response.json()).then(source => {
 
 		sortedTypes.push(...next);
 		types = types.filter(type => !sortedTypes.includes(type));
-
-		console.log(types)
 	}
 
 	types = sortedTypes;
 
+	// remove properties contained in parent classes
 	for (let type of types) {
-		console.log(type)
+		type.properties.sort((a, b) => a.name.localeCompare(b.name));
 
-		for (let line of type.description.split('\\n')) {
-			for (let part of line.split('\n')) {
-				writer.write(`// ${part}\n`);
+		let tip = type.superclass;
+
+		while (tip) {
+			const superclass = types.find(type => type.name == tip);
+
+			for (let property of [...type.properties]) {
+				if (superclass.properties.find(parentProperty => property.name == parentProperty.name)) {
+					type.properties.splice(type.properties.indexOf(property));
+				}
+			}
+
+			tip = superclass.superclass;
+		}
+	}
+
+	for (let type of types) {
+		for (let line of type.description.trim().split('\\n')) {
+			for (let part of line.trim().split('\n')) {
+				writer.write(`// ${part.trim()}\n`);
 			}
 		}
 
@@ -145,7 +160,13 @@ fetch(sourceLocation).then(response => response.json()).then(source => {
 		writer.write(`\tstatic type = '${type.name}';\n\n`);
 
 		for (let property of type.properties) {
-			writer.write(`\t${property.name}?: `);
+			for (let line of property.description.trim().split('\\n')) {
+				for (let part of line.trim().split('\n')) {
+					writer.write(`\t// ${part.trim()}\n`);
+				}
+			}
+
+			writer.write(`\tdeclare ${property.name}?: `);
 
 			for (let index = 0; index < property.valueTypes.length; index++) {
 				if (index) {
@@ -161,10 +182,9 @@ fetch(sourceLocation).then(response => response.json()).then(source => {
 				}
 			}
 
-			writer.write(';\n');
+			writer.write(';\n\n');
 		}
 
-		writer.write('\n');
 		writer.write(`\tconstructor(data: Partial<Meta${type.name}>) { super(data); }\n`);
 
 		writer.write('}\n\n');

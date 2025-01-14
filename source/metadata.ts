@@ -1,10 +1,15 @@
 export class Metadata {
+	static type: string;
 	static active: HTMLScriptElement;
 
-	constructor(private data: Object) {
+	constructor(data: Object) {
+		console.log(data);
+
 		for (let key in data) {
 			this[key] = data[key];
 		}
+
+		this['@type'] = (this.constructor as any).type;
 	}
 
 	apply() {
@@ -14,7 +19,11 @@ export class Metadata {
 
 		const script = document.createElement('script');
 		script.type = 'application/ld+json';
-		script.textContent = JSON.stringify(this);
+		script.textContent = JSON.stringify({
+			...this,
+
+			'@context': 'https://schema.org'
+		});
 
 		document.head.appendChild(script);
 	}
